@@ -96,28 +96,27 @@ static void idle_loop(void) {
         active_index = new_index;
       }
 
-      index = active_index;
+      // Handle ST4 inputs
+      switch (pin & 0x30) {
+        case 0x20: // fast
+          PORTA |= (1 << PA3);
+          index = 4;
+          break;
+        case 0x10: // slow
+          PORTA |= (1 << PA1);
+          index = 0;
+          break;
 
-      if (index > 0) {
+        default:
+          // clear ST4 indicator LEDs
+          PORTA &= ~((1 << PA3) | (1 << PA1));
+          index = active_index;
+          break;
+      }
+
+      if (active_index > 0) {
         // Output is enabled
         PORTA |= (1 << PA2);
-
-        // Handle ST4 inputs
-        switch (pin & 0x30) {
-          case 0x20: // fast
-            PORTA |= (1 << PA3);
-            index = 4;
-            break;
-          case 0x10: // slow
-            PORTA |= (1 << PA1);
-            index = 0;
-            break;
-
-          default:
-            // clear ST4 indicator LEDs
-            PORTA &= ~((1 << PA3) | (1 << PA1));
-            break;
-        }
 
         // Disable interrupts here so we don't race with ISR
         cli();
