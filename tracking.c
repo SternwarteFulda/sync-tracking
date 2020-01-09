@@ -35,7 +35,7 @@ static uint16_t s_power;
 static uint16_t s_new_index_timer;
 
 ISR(TIMER_OVERFLOW_VECTOR) {
-  PWM_OUTPUT_REG = s_output ? generator_generate(&s_gen) : 0;
+  PWM_OUTPUT_REG = s_output ? generator_generate(&s_gen) : 127;
   wdt_reset();
 
   s_power++;
