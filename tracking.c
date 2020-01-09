@@ -132,6 +132,7 @@ static void idle_loop(void) {
         // Disable interrupts here so we don't race with ISR
         cli();
         s_output = 0;
+        generator_init(&s_gen);
         sei();
       }
 
