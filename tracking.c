@@ -83,8 +83,7 @@ static void idle_loop(void) {
      */
     uint8_t pin = (~PINA) & 0xF0;
 
-    if (pin != last_pin
-        || (new_index != active_index && s_new_index_timer == 0)
+    if (pin != last_pin || (new_index != active_index && s_new_index_timer == 0)
         || s_startup_finished) {
       s_startup_finished = 0;
 
@@ -138,7 +137,8 @@ static void idle_loop(void) {
         cli();
         s_output = 1;
         generator_set_phase_increment(&s_gen, phase_inc[index]);
-        generator_set_sine(&s_gen, s_startup_timer > 0 ? sine_fast : sine_data[index]);
+        generator_set_sine(
+            &s_gen, s_startup_timer > 0 ? sine_fast : sine_data[index]);
         sei();
       } else {
         // Output is disabled
