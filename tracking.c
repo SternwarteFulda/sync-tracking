@@ -6,6 +6,8 @@
 #include "sleep.h"
 #include "timer.h"
 
+#define POWER_BLINK 0
+
 #define PWM_SIZE (256)
 #define PWM_FREQ (F_OSC / PWM_SIZE)
 
@@ -31,7 +33,9 @@ static const uint8_t __flash* const __flash sine_data[] = {
 
 static struct generator_state s_gen;
 static uint8_t s_output;
+#if POWER_BLINK
 static uint16_t s_power;
+#endif
 static uint16_t s_new_index_timer;
 static uint16_t s_startup_timer;
 static uint8_t s_startup_finished;
@@ -40,12 +44,14 @@ ISR(TIMER_OVERFLOW_VECTOR) {
   PWM_OUTPUT_REG = s_output ? generator_generate(&s_gen) : 127;
   wdt_reset();
 
+#if POWER_BLINK
   s_power++;
   if (s_power & 0xE000) {
     PORTA |= (1 << PA0); // Power
   } else {
     PORTA &= ~(1 << PA0); // Power
   }
+#endif
 
   if (s_new_index_timer > 0) {
     s_new_index_timer--;
@@ -181,6 +187,10 @@ int main(void) {
 
   // Enable watchdog timer with 16ms timeout
   WDTCSR = (1 << WDE);
+
+#if !POWER_BLINK
+  PORTA |= (1 << PA0); // Power LED on
+#endif
 
   // Run idle loop
   idle_loop();
