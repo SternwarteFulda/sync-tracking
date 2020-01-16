@@ -43,7 +43,7 @@ MCU = attiny84
 # Main Oscillator Frequency
 # This is only used to define F_OSC in all assembler and c-sources.
 # F_OSC = 10240000
-F_OSC = 10240870
+F_OSC = 10240750
 
 # Output format. (can be srec, ihex, binary)
 FORMAT = ihex
@@ -201,7 +201,7 @@ AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 # to submit bug reports.
 AVRDUDE_VERBOSE = -v -v
 
-AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER) -B 1000 -i 1000
+AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER)
 AVRDUDE_FLAGS += $(AVRDUDE_NO_VERIFY)
 AVRDUDE_FLAGS += $(AVRDUDE_VERBOSE)
 AVRDUDE_FLAGS += $(AVRDUDE_ERASE_COUNTER)
