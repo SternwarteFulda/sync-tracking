@@ -140,10 +140,12 @@ struct generator_state {
 #error "Cannot support more than 6 extra bits of accuracy"
 #endif
 
-#define COMPUTE_PHASE_INCREMENT(frequency_millihertz, pwm_size)                \
-  (((uint64_t)(frequency_millihertz) * (pwm_size))                             \
-   << (26 + GENERATOR_EXTRA_ACCURACY_BITS))                                    \
-      / (UINT64_C(1000) * F_OSC)
+#define COMPUTE_PHASE_INCREMENT(frequency, pwm_size)                           \
+  ((uint32_t)(                                                                 \
+      ((double)(frequency) * (pwm_size)                                        \
+           * (UINT64_C(1) << (26 + GENERATOR_EXTRA_ACCURACY_BITS))             \
+       + (F_OSC) / 2)                                                          \
+      / (F_OSC)))
 
 void generator_init(struct generator_state* st);
 void generator_set_sine(

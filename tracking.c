@@ -8,6 +8,9 @@
 
 #define POWER_BLINK 0
 
+// Output frequencies can be multiplied with this factor if necessary
+#define SPEED_FACTOR 1.0
+
 #define PWM_SIZE (256)
 #define PWM_FREQ (F_OSC / PWM_SIZE)
 
@@ -16,19 +19,19 @@ SIN_U8_DATA(sine_slow, 0.6);
 SIN_U8_DATA(sine_fast, 1.0);
 
 static const uint32_t __flash phase_inc[] = {
-    /* slow   */ COMPUTE_PHASE_INCREMENT(37500, PWM_SIZE), // mHz
-    /* normal */ COMPUTE_PHASE_INCREMENT(50000, PWM_SIZE), // mHz
-    /* lunar  */ COMPUTE_PHASE_INCREMENT(48170, PWM_SIZE), // mHz
-    /* solar  */ COMPUTE_PHASE_INCREMENT(49863, PWM_SIZE), // mHz
-    /* fast   */ COMPUTE_PHASE_INCREMENT(62500, PWM_SIZE), // mHz
+    /* slow     */ COMPUTE_PHASE_INCREMENT(SPEED_FACTOR * 37.5000, PWM_SIZE),
+    /* sidereal */ COMPUTE_PHASE_INCREMENT(SPEED_FACTOR * 50.1369, PWM_SIZE),
+    /* lunar    */ COMPUTE_PHASE_INCREMENT(SPEED_FACTOR * 48.9500, PWM_SIZE),
+    /* solar    */ COMPUTE_PHASE_INCREMENT(SPEED_FACTOR * 50.0000, PWM_SIZE),
+    /* fast     */ COMPUTE_PHASE_INCREMENT(SPEED_FACTOR * 62.5000, PWM_SIZE),
 };
 
 static const uint8_t __flash* const __flash sine_data[] = {
-    /* slow   */ sine_slow,
-    /* normal */ sine_normal,
-    /* lunar  */ sine_normal,
-    /* solar  */ sine_normal,
-    /* fast   */ sine_fast,
+    /* slow     */ sine_slow,
+    /* sidereal */ sine_normal,
+    /* lunar    */ sine_normal,
+    /* solar    */ sine_normal,
+    /* fast     */ sine_fast,
 };
 
 static struct generator_state s_gen;
