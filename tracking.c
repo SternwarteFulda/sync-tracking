@@ -14,6 +14,9 @@
 #define PWM_SIZE (256)
 #define PWM_FREQ (F_OSC / PWM_SIZE)
 
+#define TIMER_MSEC(msec) (((uint32_t)(msec)*PWM_FREQ) / UINT32_C(1000))
+
+// Sine templates for different amplitudes.
 SIN_U8_DATA(sine_normal, 0.8);
 SIN_U8_DATA(sine_slow, 0.6);
 SIN_U8_DATA(sine_fast, 1.0);
@@ -34,23 +37,41 @@ static const uint8_t __flash* const __flash sine_data[] = {
     /* fast     */ sine_fast,
 };
 
+// Generator state
 static struct generator_state s_gen;
+
+// Baseline PWM value; ramps up from 0 to 127 during startup
 static uint8_t s_baseline;
-static uint8_t s_output;
+
+// Boolean indicating if generator output is enabled
+static uint8_t s_output_enabled;
+
 #if POWER_BLINK
-static uint16_t s_power;
+// Power LED blink counter
+static uint16_t s_power_ctr;
 #endif
+
+// Debounce timer for rotary switch
 static uint16_t s_new_index_timer;
-static uint16_t s_startup_timer;
-static uint8_t s_startup_finished;
+
+// Timer used for boosting amplitude when enabling output
+static uint16_t s_boost_timer;
+
+// Boolean indicating when amplitude boost has finished
+static uint8_t s_boost_finished;
 
 ISR(TIMER_OVERFLOW_VECTOR) {
-  PWM_OUTPUT_REG = s_output ? generator_generate(&s_gen) : s_baseline;
+  // Generate next output sample
+  PWM_OUTPUT_REG = s_output_enabled ? generator_generate(&s_gen) : s_baseline;
+
+  // Reset watchdog
   wdt_reset();
 
+  // Now handle periodic stuff, like updating timers
+
 #if POWER_BLINK
-  s_power++;
-  if (s_power & 0xE000) {
+  s_power_ctr++;
+  if (s_power_ctr & 0xE000) {
     PORTA |= (1 << PA0); // Power
   } else {
     PORTA &= ~(1 << PA0); // Power
@@ -61,9 +82,9 @@ ISR(TIMER_OVERFLOW_VECTOR) {
     s_new_index_timer--;
   }
 
-  if (s_startup_timer > 0) {
-    if (--s_startup_timer == 0) {
-      s_startup_finished = 1;
+  if (s_boost_timer > 0) {
+    if (--s_boost_timer == 0) {
+      s_boost_finished = 1;
     }
   }
 }
@@ -94,8 +115,8 @@ static void idle_loop(void) {
     uint8_t pin = (~PINA) & 0xF0;
 
     if (pin != last_pin || (new_index != active_index && s_new_index_timer == 0)
-        || s_startup_finished) {
-      s_startup_finished = 0;
+        || s_boost_finished) {
+      s_boost_finished = 0;
 
       uint8_t index = pin >> 6;
 
@@ -108,14 +129,13 @@ static void idle_loop(void) {
          */
         new_index = index;
         cli();
-        s_new_index_timer = PWM_FREQ / 10;
+        s_new_index_timer = TIMER_MSEC(100);
         sei();
       }
 
       if (new_index != active_index && s_new_index_timer == 0) {
         if (active_index == 0) {
-          STATIC_ASSERT(PWM_FREQ <= 0xFFFF);
-          s_startup_timer = PWM_FREQ;
+          s_boost_timer = TIMER_MSEC(1000);
         }
 
         active_index = new_index;
@@ -127,6 +147,7 @@ static void idle_loop(void) {
           PORTA |= (1 << PA3);
           index = 4;
           break;
+
         case 0x10: // slow
           PORTA |= (1 << PA1);
           index = 0;
@@ -145,10 +166,10 @@ static void idle_loop(void) {
 
         // Disable interrupts here so we don't race with ISR
         cli();
-        s_output = 1;
+        s_output_enabled = 1;
         generator_set_phase_increment(&s_gen, phase_inc[index]);
         generator_set_sine(
-            &s_gen, s_startup_timer > 0 ? sine_fast : sine_data[index]);
+            &s_gen, s_boost_timer > 0 ? sine_fast : sine_data[index]);
         sei();
       } else {
         // Output is disabled
@@ -156,7 +177,7 @@ static void idle_loop(void) {
 
         // Disable interrupts here so we don't race with ISR
         cli();
-        s_output = 0;
+        s_output_enabled = 0;
         generator_init(&s_gen);
         sei();
       }
@@ -167,6 +188,8 @@ static void idle_loop(void) {
 }
 
 int main(void) {
+  STATIC_ASSERT(PWM_FREQ <= 0xFFFF);
+
   // Set status LED outputs
   DDRA = (1 << DDA3) | (1 << DDA2) | (1 << DDA1) | (1 << DDA0);
 
