@@ -141,11 +141,7 @@ struct generator_state {
 #endif
 
 #define COMPUTE_PHASE_INCREMENT(frequency, pwm_size)                           \
-  ((uint32_t)(                                                                 \
-      ((double)(frequency) * (pwm_size)                                        \
-           * (UINT64_C(1) << (26 + GENERATOR_EXTRA_ACCURACY_BITS))             \
-       + (F_OSC) / 2)                                                          \
-      / (F_OSC)))
+  ((uint32_t)(((double)(frequency) * (pwm_size) * (UINT64_C(1) << (26 + GENERATOR_EXTRA_ACCURACY_BITS)) + (F_OSC) / 2) / (F_OSC)))
 
 void generator_init(struct generator_state* st);
 void generator_set_sine(

@@ -193,7 +193,7 @@ int main(void) {
   for (uint8_t i = 0; i < 16; ++i) {
     PORTA |= 1 << (i & 0x3);
     for (uint8_t j = 0; j < 8; ++j) {
-      s_baseline = 8*i + j;
+      s_baseline = 8 * i + j;
       millisleep(31);
     }
     PORTA &= 0xF0;
