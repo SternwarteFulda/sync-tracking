@@ -135,7 +135,9 @@ static void idle_loop(void) {
 
       if (new_index != active_index && s_new_index_timer == 0) {
         if (active_index == 0) {
+          cli();
           s_boost_timer = TIMER_MSEC(1000);
+          sei();
         }
 
         active_index = new_index;
