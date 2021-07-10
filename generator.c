@@ -24,6 +24,7 @@ void generator_set_sine(
   if (st->p.phase == 0) {
     st->sine = sine;
   }
+  // Otherwise delay switch to `new_sine` until we have a zero crossing.
 }
 
 void generator_set_phase_increment(
