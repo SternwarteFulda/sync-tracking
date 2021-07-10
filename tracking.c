@@ -35,6 +35,7 @@ static const uint8_t __flash* const __flash sine_data[] = {
 };
 
 static struct generator_state s_gen;
+static uint8_t s_baseline;
 static uint8_t s_output;
 #if POWER_BLINK
 static uint16_t s_power;
@@ -44,7 +45,7 @@ static uint16_t s_startup_timer;
 static uint8_t s_startup_finished;
 
 ISR(TIMER_OVERFLOW_VECTOR) {
-  PWM_OUTPUT_REG = s_output ? generator_generate(&s_gen) : 127;
+  PWM_OUTPUT_REG = s_output ? generator_generate(&s_gen) : s_baseline;
   wdt_reset();
 
 #if POWER_BLINK
@@ -169,8 +170,11 @@ int main(void) {
   // Set status LED outputs
   DDRA = (1 << DDA3) | (1 << DDA2) | (1 << DDA1) | (1 << DDA0);
 
-  // Toggle through LEDs twice to make sure everything's working
-  for (uint8_t i = 0; i < 8; ++i) {
+  // Set PB2 as output for PWM
+  DDRB = (1 << DDB2);
+
+  // Toggle through LEDs once to make sure everything's working
+  for (uint8_t i = 0; i < 4; ++i) {
     PORTA |= 1 << (i & 0x3);
     millisleep(250);
     PORTA &= 0xF0;
@@ -182,8 +186,18 @@ int main(void) {
   // Set up timer for fast PWM
   timer_pwm_init();
 
-  // Set PB2 as output for PWM
-  DDRB = (1 << DDB2);
+  // Enable interrupts
+  sei();
+
+  // Toggle through LEDs while we ramp up the baseline
+  for (uint8_t i = 0; i < 16; ++i) {
+    PORTA |= 1 << (i & 0x3);
+    for (uint8_t j = 0; j < 8; ++j) {
+      s_baseline = 8*i + j;
+      millisleep(31);
+    }
+    PORTA &= 0xF0;
+  }
 
   // Enable pullups on PA4/PA5 (ST4) and PA6/PA7 (Mode Switch)
   PORTA |= (1 << PA7) | (1 << PA6) | (1 << PA5) | (1 << PA4);
