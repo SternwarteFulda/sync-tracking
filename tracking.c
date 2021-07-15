@@ -6,8 +6,6 @@
 #include "sleep.h"
 #include "timer.h"
 
-#define POWER_BLINK 0
-
 // Output frequencies can be multiplied with this factor if necessary
 #define SPEED_FACTOR 1.0
 
@@ -46,10 +44,6 @@ static uint8_t s_baseline;
 // Boolean indicating if generator output is enabled
 static uint8_t s_output_enabled;
 
-#if POWER_BLINK
-// Power LED blink counter
-static uint16_t s_power_ctr;
-#endif
 
 // Debounce timer for rotary switch
 static uint16_t s_new_index_timer;
@@ -68,15 +62,6 @@ ISR(TIMER_OVERFLOW_VECTOR) {
   wdt_reset();
 
   // Now handle periodic stuff, like updating timers
-
-#if POWER_BLINK
-  s_power_ctr++;
-  if (s_power_ctr & 0xE000) {
-    PORTA |= (1 << PA0); // Power
-  } else {
-    PORTA &= ~(1 << PA0); // Power
-  }
-#endif
 
   if (s_new_index_timer > 0) {
     s_new_index_timer--;
@@ -230,9 +215,7 @@ int main(void) {
   // Enable watchdog timer with 16ms timeout
   WDTCSR = (1 << WDE);
 
-#if !POWER_BLINK
   PORTA |= (1 << PA0); // Power LED on
-#endif
 
   // Run idle loop
   idle_loop();
