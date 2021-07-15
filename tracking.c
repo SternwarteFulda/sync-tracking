@@ -12,7 +12,11 @@
 #define PWM_SIZE (256)
 #define PWM_FREQ (F_OSC / PWM_SIZE)
 
-#define TIMER_MSEC(msec) (((uint32_t)(msec)*PWM_FREQ) / UINT32_C(1000))
+#define TIMER_MSEC(msec) (((uint32_t)((msec)*PWM_FREQ)) / UINT32_C(1000))
+
+// 128*31.25ms == 4 seconds
+#define STARTUP_TIMER_INTERVAL TIMER_MSEC(31.25)
+#define MAX_STARTUP_TIMER 127
 
 // Sine templates for different amplitudes.
 SIN_U8_DATA(sine_normal, 0.8);
@@ -39,39 +43,66 @@ static const uint8_t __flash* const __flash sine_data[] = {
 static struct generator_state s_gen;
 
 // Baseline PWM value; ramps up from 0 to 127 during startup
-static uint8_t s_baseline;
+static volatile uint8_t s_baseline;
 
 // Boolean indicating if generator output is enabled
-static uint8_t s_output_enabled;
-
+static volatile uint8_t s_output_enabled;
 
 // Debounce timer for rotary switch
-static uint16_t s_new_index_timer;
+static volatile uint16_t s_new_index_timer;
 
 // Timer used for boosting amplitude when enabling output
-static uint16_t s_boost_timer;
+static volatile uint16_t s_boost_timer;
 
 // Boolean indicating when amplitude boost has finished
-static uint8_t s_boost_finished;
+static volatile uint8_t s_boost_finished;
 
+// Start-up timer for ramping up baseline value
+static volatile uint16_t s_startup_timer1;
+static volatile uint8_t s_startup_timer2;
+
+//
+// Timer interrupt, triggered every 256 cycles
+//
+// Worst case run time:
+// - startup: 127 cycles
+// - running: 172 cycles (142 if GENERATOR_EXTRA_ACCURACY_BITS == 0)
+//
 ISR(TIMER_OVERFLOW_VECTOR) {
+  // context switch: 36 cycles
+
   // Generate next output sample
+  // 6 cycles if output disabled
+  // approx (28 + 5*GENERATOR_EXTRA_ACCURACY_BITS) cycles if output enabled
   PWM_OUTPUT_REG = s_output_enabled ? generator_generate(&s_gen) : s_baseline;
 
-  // Reset watchdog
+  // Reset watchdog (1 cycle)
   wdt_reset();
 
   // Now handle periodic stuff, like updating timers
 
+  // 8/13 cycles (will use 8 cycles during startup)
   if (s_new_index_timer > 0) {
     s_new_index_timer--;
   }
 
+  // 8/16/18 cycles (will use 8 cycles during startup)
   if (s_boost_timer > 0) {
     if (--s_boost_timer == 0) {
       s_boost_finished = 1;
     }
   }
+
+  // 7/15/22/29 cycles (will use 7 cycles after startup)
+  if (s_startup_timer1 > 0) {
+    if (--s_startup_timer1 == 0) {
+      if (++s_startup_timer2 < MAX_STARTUP_TIMER) {
+        s_startup_timer1 = STARTUP_TIMER_INTERVAL;
+      }
+    }
+  }
+
+  // context switch: 39 cycles
 }
 
 static void idle_loop(void) {
@@ -193,24 +224,30 @@ int main(void) {
   // Initialize generator
   generator_init(&s_gen);
 
+  // Enable pullups on PA4/PA5 (ST4) and PA6/PA7 (Mode Switch)
+  PORTA |= (1 << PA7) | (1 << PA6) | (1 << PA5) | (1 << PA4);
+
   // Set up timer for fast PWM
   timer_pwm_init();
+
+  s_startup_timer1 = STARTUP_TIMER_INTERVAL;
 
   // Enable interrupts
   sei();
 
   // Toggle through LEDs while we ramp up the baseline
-  for (uint8_t i = 0; i < 16; ++i) {
-    PORTA |= 1 << (i & 0x3);
-    for (uint8_t j = 0; j < 8; ++j) {
-      s_baseline = 8 * i + j;
-      millisleep(31);
+  for (;;) {
+    uint8_t bl = s_startup_timer2;
+    if (bl != s_baseline) {
+      s_baseline = bl;
+      PORTA &= 0xF0;
+      if (bl >= MAX_STARTUP_TIMER) {
+        break;
+      }
+      bl >>= 3;
+      PORTA |= 1 << (bl & 0x3);
     }
-    PORTA &= 0xF0;
   }
-
-  // Enable pullups on PA4/PA5 (ST4) and PA6/PA7 (Mode Switch)
-  PORTA |= (1 << PA7) | (1 << PA6) | (1 << PA5) | (1 << PA4);
 
   // Enable watchdog timer with 16ms timeout
   WDTCSR = (1 << WDE);
