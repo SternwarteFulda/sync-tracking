@@ -2,8 +2,8 @@
 
 static uint8_t sinval(uint8_t const __flash* sine, uint16_t x) {
   // As our sine wave has a period of 1024, we don't have to deal with values
-  // larger than 1023 explicitly. The uint16_t argument will simply cover 64
-  // sine periods.
+  // larger than 1023 explicitly. The uint16_t argument will simply cover
+  // between 1 and 64 sine periods, depending on GENERATOR_EXTRA_ACCURACY_BITS.
   uint8_t ix = x & 0xff;
   if (x & 0x0100) {
     // 2nd and 4th quarters index backwards into the array

@@ -116,17 +116,20 @@
 struct generator_state {
   uint8_t const __flash* sine;
   uint8_t const __flash* new_sine;
+  // Phase Accumulator. This will use (26 + GENERATOR_EXTRA_ACCURACY_BITS)
+  // effective bits. The only advantage of setting GENERATOR_EXTRA_ACCURACY_BITS
+  // to a value less than 6 is that is saves some code space.
   union {
     uint32_t phase;
     struct {
-      uint16_t lower;
-      uint16_t upper;
+      uint16_t lower; // LSW
+      uint16_t upper; // MSW
     } words;
     struct {
-      uint8_t b0;
+      uint8_t b0; // LSB
       uint8_t b1;
       uint8_t b2;
-      uint8_t b3;
+      uint8_t b3; // MSB
     } bytes;
   } p;
   uint32_t phase_increment;
